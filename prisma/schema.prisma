@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  password  String
+  phone     String?
+  company   String?
+  plan      String   @default("basic") // basic, growth, pro
+  status    String   @default("active") // active, inactive, trial
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Relations
+  transactions Transaction[]
+  invoices    Invoice[]
+  reviews     ReviewQueue[]
+  consultations Consultation[]
+}
+
+model Transaction {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  description String
+  amount      Float
+  type        String   // income, expense
+  category    String
+  date        DateTime
+  gstAmount   Float?
+  gstRate     Float?
+  notes       String?
+  status      String   @default("pending") // pending, reviewed, approved
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Invoice {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clientName  String
+  clientEmail String?
+  clientPhone String?
+  clientAddress String?
+  items       InvoiceItem[]
+  subtotal    Float
+  gstAmount   Float
+  total       Float
+  status      String   @default("draft") // draft, sent, paid, overdue
+  dueDate     DateTime
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Float
+  rate        Float
+  amount      Float
+  gstRate     Float
+  gstAmount   Float
+  total       Float
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model ReviewQueue {
+  id          String   @id @default(cuid())
+  clientId    String
+  type        String   // transaction, invoice, report, compliance
+  priority    String   // low, medium, high, urgent
+  status      String   @default("pending") // pending, reviewing, completed, escalated
+  assignedTo  String?
+  data        String?  // JSON string of the actual data to review
+  reason      String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  client      User     @relation(fields: [clientId], references: [id])
+}
+
+model Consultation {
+  id          String   @id @default(cuid())
+  clientId    String
+  accountantId String?
+  type        String   // review, strategy, tax_planning, compliance
+  status      String   @default("scheduled") // scheduled, completed, cancelled
+  dateTime    DateTime
+  duration    Int      @default(30) // minutes
+  notes       String?
+  meetingLink String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  client      User     @relation(fields: [clientId], references: [id])
+}
